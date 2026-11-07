@@ -13,12 +13,14 @@ const FIELDS = {
   city: 60, address: 250, category: 30, notes: 4000
 };
 const MAX_BACKUPS = 14;
+const DEFAULT_SETTINGS = { products: ['مانجر', 'أورنيوم'], alertDays: 10 };
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function createStore(dataDir) {
   fs.mkdirSync(dataDir, { recursive: true });
   const file = path.join(dataDir, 'customers.json');
   const backupDir = path.join(dataDir, 'backups');
-  let db = { customers: [], nextNo: 1001, revision: 1 };
+  let db = { customers: [], nextNo: 1001, revision: 1, settings: Object.assign({}, DEFAULT_SETTINGS) };
 
   if (fs.existsSync(file)) {
     try {
@@ -34,6 +36,9 @@ function createStore(dataDir) {
     }
     dailyBackup();
   }
+  // ترقية البيانات القديمة: كل عميل له قائمة اشتراكات
+  db.settings = Object.assign({}, DEFAULT_SETTINGS, db.settings || {});
+  for (const c of db.customers) if (!Array.isArray(c.subscriptions)) c.subscriptions = [];
 
   function latestBackup(dir) {
     if (!fs.existsSync(dir)) return null;
@@ -70,16 +75,78 @@ function createStore(dataDir) {
     return out;
   }
 
+  function validDate(v) {
+    if (!DATE_RE.test(v)) return false;
+    const d = new Date(v + 'T00:00:00Z');
+    return !isNaN(d) && d.toISOString().slice(0, 10) === v;
+  }
+
+  function cleanSub(input) {
+    const product = String(input.product || '').trim().slice(0, 60);
+    const start = String(input.start || '').trim();
+    const end = String(input.end || '').trim();
+    if (!product) throw httpError(400, 'اختر الخدمة / البرنامج');
+    if (!validDate(start)) throw httpError(400, 'تاريخ بداية الاشتراك غير صحيح');
+    if (!validDate(end)) throw httpError(400, 'تاريخ نهاية الاشتراك غير صحيح');
+    if (end <= start) throw httpError(400, 'تاريخ النهاية لازم يكون بعد تاريخ البداية');
+    let amount = '';
+    if (input.amount !== '' && input.amount != null) {
+      amount = Number(input.amount);
+      if (!isFinite(amount) || amount < 0) throw httpError(400, 'المبلغ غير صحيح');
+    }
+    return { product, start, end, amount, notes: String(input.notes || '').trim().slice(0, 500) };
+  }
+
+  function findCustomer(id) {
+    const c = db.customers.find(x => x.id === id);
+    if (!c) throw httpError(404, 'العميل غير موجود (ربما حذفه مستخدم آخر)');
+    return c;
+  }
+
   return {
     file,
     get revision() { return db.revision; },
     list() { return db.customers; },
+    settings() { return db.settings; },
+    setSettings(input) {
+      const products = [...new Set((Array.isArray(input.products) ? input.products : [])
+        .map(p => String(p).trim().slice(0, 60)).filter(Boolean))].slice(0, 30);
+      if (!products.length) throw httpError(400, 'أضف خدمة واحدة على الأقل');
+      const alertDays = Math.round(Number(input.alertDays));
+      if (!(alertDays >= 1 && alertDays <= 120)) throw httpError(400, 'أيام التنبيه لازم تكون بين 1 و 120');
+      db.settings = { products, alertDays };
+      save();
+      return db.settings;
+    },
+    addSub(customerId, input) {
+      const c = findCustomer(customerId);
+      const sub = Object.assign({ id: crypto.randomUUID() }, cleanSub(input), { createdAt: new Date().toISOString() });
+      c.subscriptions.push(sub);
+      save();
+      return c;
+    },
+    updateSub(customerId, subId, input) {
+      const c = findCustomer(customerId);
+      const sub = c.subscriptions.find(x => x.id === subId);
+      if (!sub) throw httpError(404, 'الاشتراك غير موجود');
+      Object.assign(sub, cleanSub(input));
+      save();
+      return c;
+    },
+    removeSub(customerId, subId) {
+      const c = findCustomer(customerId);
+      const i = c.subscriptions.findIndex(x => x.id === subId);
+      if (i === -1) throw httpError(404, 'الاشتراك غير موجود');
+      c.subscriptions.splice(i, 1);
+      save();
+      return c;
+    },
     create(input) {
       const data = clean(input);
       if (!data.name) throw httpError(400, 'اسم العميل مطلوب');
       const now = new Date().toISOString();
       const c = Object.assign({ id: crypto.randomUUID(), no: db.nextNo++ }, data,
-        { createdAt: now, updatedAt: now });
+        { subscriptions: [], createdAt: now, updatedAt: now });
       db.customers.push(c);
       save();
       return c;
@@ -174,10 +241,22 @@ function createServer(options) {
         return send(200, { revision: store.revision });
       }
 
-      if (parts[1] === 'customers') {
+      if (parts[1] === 'settings') {
+        if (req.method === 'GET') return send(200, store.settings());
+        if (req.method === 'PUT') return send(200, store.setSettings(await readBody(req)));
+      }
+
+      if (parts[1] === 'customers' && parts[3] === 'subscriptions') {
+        const id = parts[2], sid = parts[4];
+        if (!sid && req.method === 'POST') return send(201, store.addSub(id, await readBody(req)));
+        if (sid && req.method === 'PUT') return send(200, store.updateSub(id, sid, await readBody(req)));
+        if (sid && req.method === 'DELETE') return send(200, store.removeSub(id, sid));
+      }
+
+      if (parts[1] === 'customers' && parts.length <= 3) {
         const id = parts[2];
         if (!id && req.method === 'GET') {
-          return send(200, { revision: store.revision, customers: store.list() });
+          return send(200, { revision: store.revision, customers: store.list(), settings: store.settings() });
         }
         if (!id && req.method === 'POST') {
           return send(201, store.create(await readBody(req)));

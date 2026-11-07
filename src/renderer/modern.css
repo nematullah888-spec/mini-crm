@@ -1,0 +1,185 @@
+/* الثيم الحديث (ويندوز 11) — يُفعّل بإضافة theme-modern على <html> */
+html.theme-modern {
+  --m-bg: #f3f3f3;
+  --m-card: #ffffff;
+  --m-stroke: #e5e5e5;
+  --m-stroke2: #d1d1d1;
+  --m-text: #1a1a1a;
+  --m-sub: #5f5f5f;
+  --m-accent: #0067c0;
+  --m-accent-hover: #1975c5;
+  --m-hover: rgba(0, 0, 0, .045);
+  --m-press: rgba(0, 0, 0, .075);
+  --m-sel: #e1effa;
+  --m-shadow: 0 2px 6px rgba(0, 0, 0, .06);
+  --m-shadow-lg: 0 16px 40px rgba(0, 0, 0, .22), 0 2px 8px rgba(0, 0, 0, .1);
+}
+
+html.theme-modern, html.theme-modern body {
+  background: var(--m-bg);
+  color: var(--m-text);
+  font-family: "Segoe UI Variable Text", "Segoe UI", Tahoma, Arial, sans-serif;
+  font-size: 13.5px;
+  accent-color: var(--m-accent);
+}
+
+/* بدون الحواف البارزة القديمة */
+html.theme-modern .raised,
+html.theme-modern .sunken { box-shadow: none; }
+
+/* شريط القوائم */
+html.theme-modern .menubar { padding: 4px 8px; border: 0; box-shadow: none; gap: 2px; }
+html.theme-modern .menu-btn { border: 0; border-radius: 5px; padding: 4px 11px; }
+html.theme-modern .menu-btn:hover,
+html.theme-modern .menu.open .menu-btn { background: var(--m-hover); border: 0; }
+html.theme-modern .menu-list {
+  top: calc(100% + 4px); padding: 4px; min-width: 230px;
+  background: rgba(252, 252, 252, .98); border: 1px solid var(--m-stroke);
+  border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, .14);
+}
+html.theme-modern .menu-list button { border-radius: 4px; padding: 7px 26px 7px 12px; }
+html.theme-modern .menu-list button:hover { background: var(--m-hover); color: var(--m-text); }
+html.theme-modern .menu-list .key { color: var(--m-sub); opacity: 1; }
+html.theme-modern .menu-list hr { border: 0; border-top: 1px solid var(--m-stroke); margin: 4px 0; }
+html.theme-modern .menu-list .check::before { right: 8px; color: var(--m-accent); }
+
+/* شريط الأدوات */
+html.theme-modern .toolbar {
+  margin: 0 8px; padding: 6px 8px; gap: 4px; border: 1px solid var(--m-stroke);
+  border-radius: 8px; background: var(--m-card); box-shadow: var(--m-shadow);
+}
+html.theme-modern .tool { border: 0; border-radius: 6px; padding: 4px 8px; min-width: 62px; color: var(--m-text); }
+html.theme-modern .tool:hover { background: var(--m-hover); border: 0; }
+html.theme-modern .tool:active { background: var(--m-press); border: 0; }
+html.theme-modern .tool .ico { font-size: 17px; }
+html.theme-modern .sep { width: 1px; height: 32px; border: 0; background: var(--m-stroke); margin: 0 4px; }
+html.theme-modern .badge { top: 1px; left: 6px; background: #c42b1c; border-radius: 9px; }
+
+/* الحقول */
+html.theme-modern input[type=text], html.theme-modern input[type=number], html.theme-modern input[type=password],
+html.theme-modern input[type=email], html.theme-modern input[type=date], html.theme-modern input:not([type]),
+html.theme-modern select, html.theme-modern textarea {
+  box-shadow: none; background: #fff; border: 1px solid var(--m-stroke2);
+  border-bottom-color: #8a8a8a; border-radius: 5px; padding: 5px 9px; min-height: 30px;
+}
+html.theme-modern input:hover, html.theme-modern select:hover, html.theme-modern textarea:hover { background: #fafafa; }
+html.theme-modern input:focus, html.theme-modern select:focus, html.theme-modern textarea:focus {
+  outline: none; background: #fff; border-bottom: 2px solid var(--m-accent); padding-bottom: 4px;
+}
+html.theme-modern input[type=radio] { width: 16px; height: 16px; }
+
+/* المحتوى: بطاقات بيضاء بحواف دائرية */
+html.theme-modern .main { padding: 8px; gap: 8px; }
+html.theme-modern .group {
+  box-shadow: var(--m-shadow); border: 1px solid var(--m-stroke); border-radius: 8px;
+  background: var(--m-card); padding: 12px 14px;
+}
+html.theme-modern .group > legend {
+  float: right; width: 100%; padding: 0 2px 10px; background: none;
+  font-weight: 600; font-size: 14.5px;
+}
+html.theme-modern .group > legend + * { clear: both; }
+html.theme-modern .table-wrap { padding: 0; border: 1px solid var(--m-stroke); border-radius: 6px; background: #fff; }
+
+html.theme-modern .grid th {
+  box-shadow: none; background: #fafafa; border-bottom: 1px solid var(--m-stroke);
+  font-weight: 600; color: var(--m-sub); padding: 7px 8px; font-size: 13px;
+}
+html.theme-modern .grid th:hover { background: #f2f2f2; }
+html.theme-modern .grid th:active { box-shadow: none; background: #ececec; }
+html.theme-modern .grid td { padding: 6px 8px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+html.theme-modern .grid tbody tr:nth-child(even) td { background: #fff; }
+html.theme-modern .grid tbody tr:hover td { background: #f7f7f7; }
+html.theme-modern .grid tbody tr.st-soon td { background: #fff8e1; }
+html.theme-modern .grid tbody tr.st-expired td { background: #fdecee; }
+html.theme-modern .grid tbody tr.sel td { background: var(--m-sel); color: var(--m-text); }
+html.theme-modern .grid tbody tr.sel td:first-child { box-shadow: inset -3px 0 0 var(--m-accent); }
+html.theme-modern tr.sel .days.soon { color: #9d5d00; }
+html.theme-modern tr.sel .days.expired { color: #c42b1c; }
+html.theme-modern tr.sel .days.active { color: #0f7b0f; }
+
+/* الوسوم */
+html.theme-modern .tag { border: 0; border-radius: 10px; padding: 1px 9px; font-size: 12px; background: #fff4ce; }
+html.theme-modern .tag.c1 { background: #fff4ce; }
+html.theme-modern .tag.c2 { background: #dff6dd; }
+html.theme-modern .tag.c3 { background: #ededed; color: #5f5f5f; }
+html.theme-modern .tag.c0 { background: #e1effa; color: #003e73; }
+html.theme-modern .tag.under { background: #fde7d9; color: #a4410e; border: 0; }
+html.theme-modern .tag.s-active { background: #dff6dd; color: #0f5a0f; }
+html.theme-modern .tag.s-soon { background: #fff4ce; color: #7a4a00; }
+html.theme-modern .tag.s-expired { background: #fde7e9; color: #a4262c; }
+html.theme-modern .tag.s-none { background: #ededed; color: #5f5f5f; }
+html.theme-modern .days.soon { color: #9d5d00; }
+html.theme-modern .days.expired { color: #c42b1c; }
+html.theme-modern .days.active { color: #0f7b0f; }
+
+/* بيانات العميل */
+html.theme-modern .details .big { font-size: 18px; font-weight: 600; }
+html.theme-modern .details dt { color: var(--m-sub); }
+html.theme-modern .details .notes { border: 1px solid var(--m-stroke); border-radius: 6px; background: #fafafa; }
+html.theme-modern .subs-head { border-top: 1px solid var(--m-stroke); box-shadow: none; font-weight: 600; }
+html.theme-modern .sub-card {
+  box-shadow: none; border: 1px solid var(--m-stroke); border-radius: 8px; padding: 9px 11px; background: #fcfcfc;
+}
+html.theme-modern .sub-card .line { color: #444; }
+html.theme-modern .history .h-row { border-bottom: 1px solid #eee; }
+html.theme-modern .linkbtn { color: var(--m-accent); text-decoration: none; }
+html.theme-modern .linkbtn:hover { text-decoration: underline; }
+
+/* الأزرار */
+html.theme-modern .btn {
+  box-shadow: none; background: #fbfbfb; border: 1px solid var(--m-stroke2); border-bottom-color: #bdbdbd;
+  border-radius: 5px; padding: 5px 14px; min-height: 30px;
+}
+html.theme-modern .btn:hover { background: #f6f6f6; }
+html.theme-modern .btn:active { background: #f0f0f0; box-shadow: none; color: #5f5f5f; }
+html.theme-modern .btn.default {
+  outline: none; background: var(--m-accent); color: #fff; border-color: #005ba9; border-bottom-color: #003e73;
+}
+html.theme-modern .btn.default:hover { background: var(--m-accent-hover); }
+html.theme-modern .btn.default:active { background: #2a80cb; color: #e6f0fa; }
+html.theme-modern .btn:focus-visible { outline: 2px solid var(--m-text); outline-offset: 1px; }
+html.theme-modern .btn.mini { padding: 2px 10px; min-height: 26px; }
+
+/* شريط الحالة */
+html.theme-modern .statusbar { border: 0; padding: 4px 10px 6px; gap: 0; color: var(--m-sub); font-size: 12.5px; }
+html.theme-modern .statusbar .panel { box-shadow: none; padding: 2px 12px; border-left: 1px solid var(--m-stroke2); }
+html.theme-modern .statusbar .panel:last-child { border-left: 0; }
+html.theme-modern .ok { color: #0f7b0f; }
+html.theme-modern .bad { color: #c42b1c; }
+
+/* النوافذ */
+html.theme-modern .overlay { background: rgba(0, 0, 0, .3); }
+html.theme-modern .window {
+  padding: 0; background: var(--m-card); border: 1px solid rgba(0, 0, 0, .12);
+  border-radius: 8px; box-shadow: var(--m-shadow-lg);
+}
+html.theme-modern .title-bar {
+  background: none; color: var(--m-text); font-weight: 600; font-size: 15px; padding: 10px 18px 0 6px;
+}
+html.theme-modern .tb-close {
+  box-shadow: none; background: none; width: 34px; height: 30px; border-radius: 5px; font-size: 13px; color: var(--m-text);
+}
+html.theme-modern .tb-close:hover { background: #c42b1c; color: #fff; }
+html.theme-modern .window-body { padding: 14px 20px 18px; }
+html.theme-modern .window .buttons {
+  margin: 16px -20px -18px; padding: 14px 20px; background: #f3f3f3; border-top: 1px solid var(--m-stroke);
+  border-radius: 0 0 8px 8px;
+}
+html.theme-modern .window .form .buttons { margin-top: 10px; }
+html.theme-modern .dlg-msg .buttons { justify-content: flex-start; }
+html.theme-modern .window .group { box-shadow: none; background: #fbfbfb; }
+html.theme-modern .error { border: 0; border-radius: 6px; background: #fde7e9; color: #a4262c; padding: 8px 10px; }
+html.theme-modern .hint, html.theme-modern .sub-summary {
+  border: 0; border-radius: 6px; background: #f0f6fc; padding: 10px 12px;
+}
+html.theme-modern .hint .ip { border: 1px solid var(--m-stroke2); border-radius: 4px; }
+html.theme-modern .alerts-wrap { border-radius: 6px; }
+
+/* أشرطة التمرير الرفيعة */
+html.theme-modern ::-webkit-scrollbar { width: 10px; height: 10px; }
+html.theme-modern ::-webkit-scrollbar-track { background: transparent; }
+html.theme-modern ::-webkit-scrollbar-thumb {
+  background: #c2c2c2; border: 3px solid transparent; background-clip: padding-box; border-radius: 6px; box-shadow: none;
+}
+html.theme-modern ::-webkit-scrollbar-thumb:hover { background-color: #9a9a9a; }

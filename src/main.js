@@ -88,8 +88,8 @@ function state() {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1150,
-    height: 720,
+    width: 1280,
+    height: 760,
     minWidth: 860,
     minHeight: 520,
     title: 'برنامج العملاء',

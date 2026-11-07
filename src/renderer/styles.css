@@ -55,6 +55,8 @@ input, select, textarea, button { font: inherit; color: inherit; }
 }
 .menu-list button:hover { background: var(--select); color: #fff; }
 .menu-list .key { color: inherit; opacity: .7; margin-right: 24px; direction: ltr; }
+.menu-list button { position: relative; }
+.menu-list .check::before { content: "✓"; position: absolute; right: 5px; font-weight: bold; }
 .menu-list hr { border: 0; border-top: 1px solid var(--shadow); border-bottom: 1px solid var(--light); margin: 3px 2px; }
 
 /* شريط الأدوات */
@@ -91,7 +93,8 @@ textarea { resize: vertical; }
 }
 .group legend { padding: 0 4px; background: var(--face); }
 .list-group { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.details-group { width: 300px; flex-shrink: 0; overflow: auto; }
+.details-group { width: 350px; flex-shrink: 0; display: flex; flex-direction: column; min-height: 0; }
+.details-group .details { flex: 1; overflow: auto; padding-left: 4px; }
 
 .table-wrap { flex: 1; overflow: auto; position: relative; padding: 2px; }
 .grid { width: 100%; border-collapse: collapse; background: #fff; }
@@ -106,6 +109,8 @@ textarea { resize: vertical; }
 .grid td { padding: 3px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; border-bottom: 1px solid #eee; }
 .grid tbody tr:nth-child(even) td { background: #f6f6f6; }
 .grid tbody tr.sel td { background: var(--select); color: #fff; }
+.grid td.wrap { white-space: normal; min-width: 70px; }
+.grid td.wrap .tag { white-space: nowrap; }
 .grid td.ltr { direction: ltr; text-align: right; }
 .empty { padding: 30px 10px; text-align: center; color: #555; }
 
@@ -196,3 +201,44 @@ tr.sel .tag { color: #000; }
 ::-webkit-scrollbar-track { background: repeating-conic-gradient(var(--face) 0 25%, #fff 0 50%) 0 0 / 2px 2px; }
 ::-webkit-scrollbar-thumb { background: var(--face);
   box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hilite), inset -2px -2px var(--shadow), inset 2px 2px var(--light); }
+
+/* الاشتراكات */
+.alert-tool { position: relative; }
+.badge { position: absolute; top: 0; left: 4px; min-width: 18px; padding: 0 4px; font-size: 11px; line-height: 16px;
+  background: #c00000; color: #fff; border-radius: 8px; font-weight: bold; }
+.grid tbody tr.st-soon td { background: #ffe4a8; }
+.grid tbody tr.st-expired td { background: #ffd0d0; }
+.grid tbody tr.sel td { background: var(--select); color: #fff; }
+.days.soon { color: #a05a00; font-weight: bold; }
+.days.expired { color: #b00000; font-weight: bold; }
+.days.active { color: #006400; }
+tr.sel .days { color: #fff; }
+.tag.under { background: #fff; border-color: #c06000; color: #c06000; font-weight: bold; }
+.tag.s-active { background: #d6f5d6; }
+.tag.s-soon { background: #ffd27a; }
+.tag.s-expired { background: #ffb3b3; }
+.tag.s-none { background: #eee; color: #555; }
+
+.subs-head { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 8px;
+  border-top: 1px solid var(--shadow); box-shadow: 0 1px 0 var(--light) inset; font-weight: bold; }
+.sub-card { margin-top: 6px; padding: 6px 8px; background: #fff;
+  box-shadow: inset -1px -1px var(--light), inset 1px 1px var(--shadow); }
+.sub-card .row1 { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.sub-card .pname { font-weight: bold; font-size: 14px; }
+.sub-card .line { color: #333; font-size: 12px; }
+.sub-card .acts { display: flex; gap: 4px; margin-top: 4px; }
+.mini { min-width: 0; padding: 2px 8px; font-size: 12px; }
+.history { margin-top: 8px; font-size: 12px; }
+.history summary { cursor: default; color: #333; }
+.history .h-row { display: flex; justify-content: space-between; gap: 6px; padding: 3px 4px; border-bottom: 1px dotted #999; }
+.linkbtn { background: none; border: 0; color: #00c; text-decoration: underline; padding: 0 2px; cursor: default; font-size: 12px; }
+
+.dlg-sub { width: 500px; }
+.sub-summary { padding: 6px; background: #ffffe1; border: 1px solid #888; line-height: 1.6; min-height: 22px; }
+.sub-customer { font-size: 14px; }
+.dlg-alerts { width: 720px; }
+.alerts-wrap { height: 320px; margin: 8px 0; }
+.alerts-intro { line-height: 1.6; }
+.dlg-alerts .grid tbody tr { cursor: default; }
+
+@media (max-width: 1180px) { .details-group { width: 280px; } }

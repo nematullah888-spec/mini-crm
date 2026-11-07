@@ -6,6 +6,8 @@
         content="default-src 'self'; connect-src http: https:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'">
   <title>برنامج العملاء</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="modern.css">
+  <script src="theme.js"></script>
 </head>
 <body>
 <div class="app">
@@ -28,6 +30,7 @@
       <div class="menu-list">
         <button data-cmd="edit">تعديل العميل<span class="key">Enter</span></button>
         <button data-cmd="delete">حذف العميل<span class="key">Del</span></button>
+        <button data-cmd="addSub">إضافة اشتراك / تجديد…</button>
         <hr>
         <button data-cmd="find">بحث<span class="key">Ctrl+F</span></button>
       </div>
@@ -36,6 +39,10 @@
       <button class="menu-btn">عرض</button>
       <div class="menu-list">
         <button data-cmd="refresh">تحديث<span class="key">F5</span></button>
+        <button data-cmd="alerts">تنبيهات الاشتراكات…</button>
+        <hr>
+        <button data-cmd="themeClassic" data-theme="classic">الشكل الكلاسيكي (ويندوز 98)</button>
+        <button data-cmd="themeModern" data-theme="modern">الشكل الحديث (ويندوز 11)</button>
       </div>
     </div>
     <div class="menu">
@@ -58,6 +65,9 @@
     <button class="tool" data-cmd="edit"><span class="ico">✏️</span>تعديل</button>
     <button class="tool" data-cmd="delete"><span class="ico">🗑️</span>حذف</button>
     <span class="sep"></span>
+    <button class="tool" data-cmd="addSub"><span class="ico">📅</span>اشتراك</button>
+    <button class="tool alert-tool" data-cmd="alerts"><span class="ico">🔔</span>التنبيهات<b class="badge" id="alertBadge" hidden></b></button>
+    <span class="sep"></span>
     <button class="tool" data-cmd="refresh"><span class="ico">🔄</span>تحديث</button>
     <button class="tool" data-cmd="export"><span class="ico">📊</span>تصدير</button>
     <span class="sep"></span>
@@ -70,6 +80,17 @@
     <label class="search">
       التصنيف:
       <select id="filterCat"><option value="">الكل</option></select>
+    </label>
+    <label class="search">
+      الاشتراك:
+      <select id="filterSub">
+        <option value="">الكل</option>
+        <option value="soon">قرب الانتهاء</option>
+        <option value="expired">منتهي</option>
+        <option value="active">فعّال</option>
+        <option value="under">أقل من سنة</option>
+        <option value="none">بدون اشتراك</option>
+      </select>
     </label>
   </div>
 
@@ -86,8 +107,10 @@
               <th data-sort="phone">الجوال</th>
               <th data-sort="company">الشركة</th>
               <th data-sort="city">المدينة</th>
+              <th data-sort="product">الخدمة</th>
+              <th data-sort="end">ينتهي في</th>
+              <th data-sort="remaining">المتبقي</th>
               <th data-sort="category">التصنيف</th>
-              <th data-sort="updatedAt">آخر تعديل</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -107,6 +130,7 @@
     <div class="panel" id="stCount">—</div>
     <div class="panel" id="stMode">—</div>
     <div class="panel" id="stConn">—</div>
+    <div class="panel" id="stAlerts">—</div>
     <div class="panel grow" id="stInfo"></div>
   </div>
 </div>
@@ -141,6 +165,60 @@
   </div>
 </template>
 
+<template id="tplSub">
+  <div class="window dlg-sub">
+    <div class="title-bar">
+      <span class="title-bar-text"></span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <form class="form" autocomplete="off">
+        <label>العميل</label><b class="sub-customer"></b>
+        <label>الخدمة / البرنامج <b class="req">*</b></label><select name="product" required></select>
+        <label>تاريخ البداية <b class="req">*</b></label><input name="start" type="date" required>
+        <label>المدة</label>
+        <select name="duration">
+          <option value="12">سنة</option>
+          <option value="6">6 أشهر</option>
+          <option value="3">3 أشهر</option>
+          <option value="1">شهر</option>
+          <option value="custom">مدة أخرى (حدد تاريخ النهاية)</option>
+        </select>
+        <label>تاريخ النهاية <b class="req">*</b></label><input name="end" type="date" required>
+        <label></label><div class="sub-summary"></div>
+        <label>المبلغ (ريال)</label><input name="amount" type="number" min="0" step="0.01" dir="ltr">
+        <label>ملاحظات</label><input name="notes" maxlength="500">
+        <div class="error" hidden></div>
+        <div class="buttons">
+          <button type="submit" class="btn default">حفظ</button>
+          <button type="button" class="btn" data-close>إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<template id="tplAlerts">
+  <div class="window dlg-alerts">
+    <div class="title-bar">
+      <span class="title-bar-text">🔔 تنبيهات الاشتراكات</span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <div class="alerts-intro"></div>
+      <div class="table-wrap sunken alerts-wrap">
+        <table class="grid">
+          <thead><tr><th>العميل</th><th>الجوال</th><th>الخدمة</th><th>ينتهي في</th><th>المتبقي</th><th></th></tr></thead>
+          <tbody class="alerts-rows"></tbody>
+        </table>
+      </div>
+      <div class="buttons">
+        <button type="button" class="btn default" data-close>إغلاق</button>
+      </div>
+    </div>
+  </div>
+</template>
+
 <template id="tplSettings">
   <div class="window dlg-settings">
     <div class="title-bar">
@@ -148,6 +226,14 @@
       <button class="tb-close" data-close aria-label="إغلاق">✕</button>
     </div>
     <div class="window-body">
+      <fieldset class="group">
+        <legend>شكل البرنامج</legend>
+        <label class="radio"><input type="radio" name="theme" value="classic">
+          <span><b>كلاسيكي</b> — شكل ويندوز 98 القديم.</span></label>
+        <label class="radio"><input type="radio" name="theme" value="modern">
+          <span><b>حديث</b> — شكل ويندوز 11.</span></label>
+      </fieldset>
+
       <fieldset class="group">
         <legend>طريقة التشغيل</legend>
         <label class="radio"><input type="radio" name="mode" value="local">
@@ -176,6 +262,17 @@
         </div>
       </fieldset>
 
+      <fieldset class="group">
+        <legend>الخدمات والتنبيهات (مشتركة بين كل الأجهزة)</legend>
+        <div class="form small">
+          <label>الخدمات / البرامج<br><small>(كل خدمة في سطر)</small></label>
+          <textarea name="products" rows="4"></textarea>
+          <label>التنبيه قبل الانتهاء بـ</label>
+          <span><input name="alertDays" type="number" min="1" max="120" dir="ltr" style="width:70px"> يوم</span>
+        </div>
+      </fieldset>
+
+      <div class="error settings-error" hidden></div>
       <div class="buttons">
         <button type="button" class="btn default" id="btnSaveSettings">حفظ وتطبيق</button>
         <button type="button" class="btn" data-close>إلغاء</button>
@@ -197,6 +294,7 @@
   </div>
 </template>
 
+<script src="subs.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
