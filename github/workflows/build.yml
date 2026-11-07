@@ -1,0 +1,50 @@
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        run: npm install
+
+      - name: Test
+        run: npm test
+
+      - name: Build installer (Setup.exe)
+        run: npx electron-builder --win --x64 --publish never
+
+      - name: Keep a copy in Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiniCRM-Setup
+          path: dist/MiniCRM-Setup.exe
+
+      - name: Move "latest" tag to this commit
+        shell: bash
+        run: |
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Publish to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "برنامج العملاء - آخر نسخة"
+          body: |
+            حمّل ملف MiniCRM-Setup.exe بالأسفل وشغّله لتثبيت البرنامج.
+          files: dist/MiniCRM-Setup.exe
+          make_latest: true
