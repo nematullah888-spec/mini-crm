@@ -45,6 +45,28 @@ async function req(base, method, p, body, key) {
   r = await req(base, 'GET', '/api/customers');
   assert.strictEqual(r.data.customers.length, 2);
 
+  // الاشتراكات والإعدادات
+  r = await req(base, 'GET', '/api/customers');
+  assert.deepStrictEqual(r.data.settings.products, ['مانجر', 'أورنيوم']);
+  assert.strictEqual(r.data.settings.alertDays, 10);
+  r = await req(base, 'POST', `/api/customers/${id}/subscriptions`, { product: 'مانجر', start: '2026-01-01', end: '2026-09-01', amount: '1500' });
+  assert.strictEqual(r.status, 201);
+  assert.strictEqual(r.data.subscriptions.length, 1);
+  assert.strictEqual(r.data.subscriptions[0].amount, 1500);
+  const sid = r.data.subscriptions[0].id;
+  assert.strictEqual((await req(base, 'POST', `/api/customers/${id}/subscriptions`, { product: 'مانجر', start: '2026-05-01', end: '2026-01-01' })).status, 400, 'النهاية قبل البداية');
+  assert.strictEqual((await req(base, 'POST', `/api/customers/${id}/subscriptions`, { product: 'مانجر', start: '2026-02-30', end: '2027-01-01' })).status, 400, 'تاريخ غير صحيح');
+  assert.strictEqual((await req(base, 'POST', `/api/customers/${id}/subscriptions`, { product: '', start: '2026-01-01', end: '2027-01-01' })).status, 400);
+  r = await req(base, 'PUT', `/api/customers/${id}/subscriptions/${sid}`, { product: 'أورنيوم', start: '2026-01-01', end: '2027-01-01', amount: '' });
+  assert.strictEqual(r.data.subscriptions[0].product, 'أورنيوم');
+  r = await req(base, 'PUT', '/api/customers/' + id, { name: 'محمد أحمد', city: 'جدة' });
+  assert.strictEqual(r.data.subscriptions.length, 1, 'تعديل العميل لا يمسح الاشتراكات');
+  r = await req(base, 'DELETE', `/api/customers/${id}/subscriptions/${sid}`);
+  assert.strictEqual(r.data.subscriptions.length, 0);
+  r = await req(base, 'PUT', '/api/settings', { products: [' مانجر ', 'أورنيوم', 'مانجر', 'برنامج ثالث'], alertDays: 15 });
+  assert.deepStrictEqual(r.data, { products: ['مانجر', 'أورنيوم', 'برنامج ثالث'], alertDays: 15 });
+  assert.strictEqual((await req(base, 'PUT', '/api/settings', { products: [], alertDays: 10 })).status, 400);
+
   r = await req(base, 'DELETE', '/api/customers/' + id);
   assert.strictEqual(r.status, 200);
   r = await req(base, 'PUT', '/api/customers/' + id, { name: 'x' });
@@ -62,6 +84,8 @@ async function req(base, method, p, body, key) {
   assert.strictEqual(r.status, 200);
   assert.strictEqual(r.data.customers.length, 1);
   assert.strictEqual(r.data.customers[0].name, 'شركة النور');
+  assert.strictEqual(r.data.settings.alertDays, 15, 'الإعدادات محفوظة بعد إعادة التشغيل');
+  assert.ok(Array.isArray(r.data.customers[0].subscriptions));
   r = await req(base, 'POST', '/api/customers', { name: 'عميل ثالث' }, 'سر123');
   assert.strictEqual(r.data.no, 1003, 'الترقيم يكمل بعد إعادة التشغيل');
   await s.close();
