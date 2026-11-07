@@ -1,0 +1,53 @@
+{
+  "name": "mini-crm",
+  "version": "1.0.0",
+  "description": "Mini CRM - برنامج عملاء مصغر يعمل على جهاز واحد أو على الشبكة المحلية",
+  "main": "src/main.js",
+  "author": "MiniCRM",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node tests/server.test.js",
+    "dist": "electron-builder --win --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.minicrm.desktop",
+    "productName": "MiniCRM",
+    "copyright": "MiniCRM",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "برنامج العملاء",
+      "uninstallDisplayName": "برنامج العملاء MiniCRM",
+      "artifactName": "MiniCRM-Setup.exe",
+      "installerLanguages": ["ar_SA"],
+      "language": "1025",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; connect-src http: https:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'">
+  <title>برنامج العملاء</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- شريط القوائم -->
+  <div class="menubar" id="menubar">
+    <div class="menu">
+      <button class="menu-btn">ملف</button>
+      <div class="menu-list">
+        <button data-cmd="new">عميل جديد<span class="key">Ctrl+N</span></button>
+        <button data-cmd="export">تصدير إلى Excel…</button>
+        <hr>
+        <button data-cmd="openData">فتح مجلد البيانات</button>
+        <hr>
+        <button data-cmd="quit">خروج</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn">تحرير</button>
+      <div class="menu-list">
+        <button data-cmd="edit">تعديل العميل<span class="key">Enter</span></button>
+        <button data-cmd="delete">حذف العميل<span class="key">Del</span></button>
+        <hr>
+        <button data-cmd="find">بحث<span class="key">Ctrl+F</span></button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn">عرض</button>
+      <div class="menu-list">
+        <button data-cmd="refresh">تحديث<span class="key">F5</span></button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn">أدوات</button>
+      <div class="menu-list">
+        <button data-cmd="settings">الإعدادات والشبكة…</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn">مساعدة</button>
+      <div class="menu-list">
+        <button data-cmd="about">حول البرنامج</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- شريط الأدوات -->
+  <div class="toolbar">
+    <button class="tool" data-cmd="new"><span class="ico">➕</span>جديد</button>
+    <button class="tool" data-cmd="edit"><span class="ico">✏️</span>تعديل</button>
+    <button class="tool" data-cmd="delete"><span class="ico">🗑️</span>حذف</button>
+    <span class="sep"></span>
+    <button class="tool" data-cmd="refresh"><span class="ico">🔄</span>تحديث</button>
+    <button class="tool" data-cmd="export"><span class="ico">📊</span>تصدير</button>
+    <span class="sep"></span>
+    <button class="tool" data-cmd="settings"><span class="ico">⚙️</span>الإعدادات</button>
+    <span class="grow"></span>
+    <label class="search">
+      بحث:
+      <input type="text" id="search" placeholder="الاسم، الجوال، الشركة…">
+    </label>
+    <label class="search">
+      التصنيف:
+      <select id="filterCat"><option value="">الكل</option></select>
+    </label>
+  </div>
+
+  <!-- المحتوى -->
+  <div class="main">
+    <fieldset class="group list-group">
+      <legend>قائمة العملاء</legend>
+      <div class="table-wrap sunken" id="tableWrap">
+        <table class="grid" id="grid">
+          <thead>
+            <tr>
+              <th data-sort="no">الرقم</th>
+              <th data-sort="name">اسم العميل</th>
+              <th data-sort="phone">الجوال</th>
+              <th data-sort="company">الشركة</th>
+              <th data-sort="city">المدينة</th>
+              <th data-sort="category">التصنيف</th>
+              <th data-sort="updatedAt">آخر تعديل</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty"></div>
+      </div>
+    </fieldset>
+
+    <fieldset class="group details-group">
+      <legend>بيانات العميل</legend>
+      <div id="details" class="details"></div>
+    </fieldset>
+  </div>
+
+  <!-- شريط الحالة -->
+  <div class="statusbar">
+    <div class="panel" id="stCount">—</div>
+    <div class="panel" id="stMode">—</div>
+    <div class="panel" id="stConn">—</div>
+    <div class="panel grow" id="stInfo"></div>
+  </div>
+</div>
+
+<!-- النوافذ المنبثقة -->
+<div class="overlay" id="overlay" hidden></div>
+
+<template id="tplCustomer">
+  <div class="window dlg-customer">
+    <div class="title-bar">
+      <span class="title-bar-text"></span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <form class="form" autocomplete="off">
+        <label>اسم العميل <b class="req">*</b></label><input name="name" required maxlength="120">
+        <label>الجوال</label><input name="phone" maxlength="40" dir="ltr">
+        <label>جوال آخر</label><input name="phone2" maxlength="40" dir="ltr">
+        <label>البريد الإلكتروني</label><input name="email" maxlength="120" dir="ltr" type="email">
+        <label>الشركة</label><input name="company" maxlength="120">
+        <label>المدينة</label><input name="city" maxlength="60">
+        <label>التصنيف</label><select name="category"></select>
+        <label>العنوان</label><input name="address" maxlength="250">
+        <label>ملاحظات</label><textarea name="notes" rows="5" maxlength="4000"></textarea>
+        <div class="error" hidden></div>
+        <div class="buttons">
+          <button type="submit" class="btn default">حفظ</button>
+          <button type="button" class="btn" data-close>إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<template id="tplSettings">
+  <div class="window dlg-settings">
+    <div class="title-bar">
+      <span class="title-bar-text">الإعدادات والشبكة</span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <fieldset class="group">
+        <legend>طريقة التشغيل</legend>
+        <label class="radio"><input type="radio" name="mode" value="local">
+          <span><b>جهاز واحد</b> — البيانات محفوظة على هذا الجهاز فقط، بدون شبكة.</span></label>
+        <label class="radio"><input type="radio" name="mode" value="server">
+          <span><b>خادم (سيرفر)</b> — هذا الجهاز يحفظ البيانات، والأجهزة الثانية تتصل فيه.</span></label>
+        <label class="radio"><input type="radio" name="mode" value="client">
+          <span><b>عميل</b> — هذا الجهاز يتصل بجهاز الخادم ويشتغل على بياناته.</span></label>
+      </fieldset>
+
+      <fieldset class="group net">
+        <legend>إعدادات الشبكة</legend>
+        <div class="form small">
+          <label class="only-client">عنوان جهاز الخادم (IP)</label>
+          <input class="only-client" name="serverHost" dir="ltr" placeholder="192.168.1.10">
+          <label>رقم المنفذ (Port)</label>
+          <input name="port" type="number" min="1024" max="65535" dir="ltr">
+          <label>رمز الشبكة</label>
+          <input name="accessKey" type="password" placeholder="اختياري — نفس الرمز في كل الأجهزة">
+        </div>
+        <div class="hint only-server" id="ipHint"></div>
+        <div class="hint only-client">
+          اكتب عنوان جهاز الخادم كما يظهر في إعداداته، ثم اضغط «اختبار الاتصال».
+          <button type="button" class="btn" id="btnTest">اختبار الاتصال</button>
+          <span id="testResult"></span>
+        </div>
+      </fieldset>
+
+      <div class="buttons">
+        <button type="button" class="btn default" id="btnSaveSettings">حفظ وتطبيق</button>
+        <button type="button" class="btn" data-close>إلغاء</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<template id="tplMsg">
+  <div class="window dlg-msg">
+    <div class="title-bar">
+      <span class="title-bar-text"></span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <div class="msg"><span class="msg-ico"></span><div class="msg-text"></div></div>
+      <div class="buttons"></div>
+    </div>
+  </div>
+</template>
+
+<script src="app.js"></script>
+</body>
+</html>
