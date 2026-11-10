@@ -6,9 +6,11 @@ const os = require('os');
 const path = require('path');
 const { createServer } = require('../src/server');
 
+let token = '';
 async function req(base, method, p, body, key) {
   const headers = { 'Content-Type': 'application/json' };
   if (key) headers['X-CRM-Key'] = encodeURIComponent(key);
+  if (token) headers.Authorization = 'Bearer ' + token;
   const r = await fetch(base + p, { method, headers, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, data: await r.json() };
 }
@@ -23,6 +25,14 @@ async function req(base, method, p, body, key) {
 
   let r = await req(base, 'GET', '/api/ping');
   assert.strictEqual(r.data.app, 'MiniCRM');
+
+  // بدون حساب: كل البيانات مقفلة
+  r = await req(base, 'GET', '/api/customers');
+  assert.strictEqual(r.status, 401);
+  assert.strictEqual(r.data.code, 'login');
+  r = await req(base, 'POST', '/api/auth/setup', { username: 'admin', password: '123456', email: 'me@example.com' });
+  assert.strictEqual(r.status, 201);
+  token = r.data.token;
 
   r = await req(base, 'POST', '/api/customers', { name: '' });
   assert.strictEqual(r.status, 400, 'الاسم مطلوب');
@@ -78,8 +88,14 @@ async function req(base, method, p, body, key) {
   port = await s.listen(0, '0.0.0.0');
   base = `http://127.0.0.1:${port}`;
   assert.strictEqual((await req(base, 'GET', '/api/ping')).data.needsKey, true);
-  assert.strictEqual((await req(base, 'GET', '/api/customers')).status, 401);
-  assert.strictEqual((await req(base, 'GET', '/api/customers', null, 'خطأ')).status, 401);
+  assert.strictEqual((await req(base, 'GET', '/api/customers')).status, 403);
+  assert.strictEqual((await req(base, 'GET', '/api/customers', null, 'خطأ')).status, 403);
+  // الجلسة القديمة تنتهي بعد إعادة التشغيل
+  assert.strictEqual((await req(base, 'GET', '/api/customers', null, 'سر123')).status, 401);
+  token = '';
+  r = await req(base, 'POST', '/api/auth/login', { username: 'ADMIN', password: '123456' }, 'سر123');
+  assert.strictEqual(r.status, 200, 'اسم المستخدم لا يفرق بين الحروف الكبيرة والصغيرة');
+  token = r.data.token;
   r = await req(base, 'GET', '/api/customers', null, 'سر123');
   assert.strictEqual(r.status, 200);
   assert.strictEqual(r.data.customers.length, 1);

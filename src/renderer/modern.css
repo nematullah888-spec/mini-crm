@@ -183,3 +183,24 @@ html.theme-modern ::-webkit-scrollbar-thumb {
   background: #c2c2c2; border: 3px solid transparent; background-clip: padding-box; border-radius: 6px; box-shadow: none;
 }
 html.theme-modern ::-webkit-scrollbar-thumb:hover { background-color: #9a9a9a; }
+
+/* شاشة الدخول — الحديث */
+html.theme-modern .auth { background: radial-gradient(circle at 20% 20%, #cfe3f7 0, transparent 45%),
+  radial-gradient(circle at 80% 80%, #e3dcf5 0, transparent 45%), #eef2f7; }
+html.theme-modern .auth-win { width: 440px; }
+html.theme-modern .auth .title-bar { display: none; }
+html.theme-modern .auth .window-body { padding: 28px 30px 22px; }
+html.theme-modern .auth-head { flex-direction: column; text-align: center; gap: 8px; margin-bottom: 16px; }
+html.theme-modern .auth-head img { width: 56px; height: 56px; border-radius: 12px; }
+html.theme-modern .auth-title { font-size: 20px; font-weight: 600; }
+html.theme-modern .auth-form label { font-weight: 600; font-size: 13px; color: #333; }
+html.theme-modern .auth-form .buttons, html.theme-modern .auth .buttons {
+  margin: 14px 0 0; padding: 0; background: none; border: 0; }
+html.theme-modern .auth-form .btn.default { width: 100%; min-height: 34px; font-size: 14px; }
+html.theme-modern .auth-foot { border-top: 1px solid var(--m-stroke); box-shadow: none; }
+html.theme-modern .muted { color: var(--m-sub); }
+html.theme-modern .ok-msg { border: 0; border-radius: 6px; background: #dff6dd; color: #0f5a0f; padding: 8px 10px; }
+html.theme-modern .code-box { box-shadow: none; border: 1px dashed #8a8a8a; border-radius: 8px; background: #fafafa; }
+html.theme-modern .choice-card { box-shadow: none; border: 1px solid var(--m-stroke); border-radius: 8px; padding: 12px; background: #fcfcfc; }
+html.theme-modern .choice-card .btn.default { width: auto; }
+html.theme-modern .dlg-smtp a { color: var(--m-accent); }

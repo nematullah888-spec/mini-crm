@@ -22,6 +22,7 @@
         <hr>
         <button data-cmd="openData">فتح مجلد البيانات</button>
         <hr>
+        <button data-cmd="logout">تسجيل الخروج</button>
         <button data-cmd="quit">خروج</button>
       </div>
     </div>
@@ -49,6 +50,16 @@
       <button class="menu-btn">أدوات</button>
       <div class="menu-list">
         <button data-cmd="settings">الإعدادات والشبكة…</button>
+      </div>
+    </div>
+    <div class="menu">
+      <button class="menu-btn">الحساب</button>
+      <div class="menu-list">
+        <button data-cmd="account">تغيير كلمة المرور والبيانات…</button>
+        <button data-cmd="smtp">إعداد الإيميل لاستعادة كلمة المرور…</button>
+        <button data-cmd="recovery">إنشاء رمز استرداد جديد…</button>
+        <hr>
+        <button data-cmd="logout">تسجيل الخروج</button>
       </div>
     </div>
     <div class="menu">
@@ -127,11 +138,24 @@
 
   <!-- شريط الحالة -->
   <div class="statusbar">
+    <div class="panel" id="stUser">—</div>
     <div class="panel" id="stCount">—</div>
     <div class="panel" id="stMode">—</div>
     <div class="panel" id="stConn">—</div>
     <div class="panel" id="stAlerts">—</div>
     <div class="panel grow" id="stInfo"></div>
+  </div>
+</div>
+
+<!-- شاشة تسجيل الدخول -->
+<div class="auth" id="auth">
+  <div class="window auth-win">
+    <div class="title-bar">
+      <span class="title-bar-text" id="authTitle">🔒 برنامج العملاء</span>
+    </div>
+    <div class="window-body" id="authBody">
+      <div class="muted" style="padding:20px;text-align:center">جاري التحميل…</div>
+    </div>
   </div>
 </div>
 
@@ -277,6 +301,87 @@
         <button type="button" class="btn default" id="btnSaveSettings">حفظ وتطبيق</button>
         <button type="button" class="btn" data-close>إلغاء</button>
       </div>
+    </div>
+  </div>
+</template>
+
+<template id="tplAccount">
+  <div class="window dlg-account">
+    <div class="title-bar">
+      <span class="title-bar-text">👤 تغيير كلمة المرور والبيانات</span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <form class="form" autocomplete="off">
+        <label>اسم المستخدم</label><input name="username" maxlength="40">
+        <label>الإيميل (للاستعادة)</label><input name="email" type="email" dir="ltr" maxlength="120">
+        <label>كلمة مرور جديدة</label><input name="newPassword" type="password" placeholder="اتركها فاضية إذا ما تبي تغيّرها">
+        <label>تأكيد كلمة المرور</label><input name="confirm" type="password">
+        <label>كلمة المرور الحالية <b class="req">*</b></label><input name="currentPassword" type="password" required>
+        <div class="error" hidden></div>
+        <div class="buttons">
+          <button type="submit" class="btn default">حفظ</button>
+          <button type="button" class="btn" data-close>إلغاء</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<template id="tplSmtp">
+  <div class="window dlg-smtp">
+    <div class="title-bar">
+      <span class="title-bar-text">✉️ إعداد الإيميل لاستعادة كلمة المرور</span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <div class="hint">
+        إذا نسيت كلمة المرور، البرنامج يرسل لك رمز على إيميلك. عشان يقدر يرسل، يحتاج حساب Gmail يرسل منه (ممكن نفس إيميلك):
+        <ol>
+          <li>فعّل <b>التحقق بخطوتين</b> في حساب Google.</li>
+          <li>ادخل <a href="https://myaccount.google.com/apppasswords" target="_blank">صفحة كلمات مرور التطبيقات</a> وسوّ كلمة مرور جديدة (16 حرف).</li>
+          <li>اكتب الإيميل وكلمة مرور التطبيق هنا، واضغط «حفظ وإرسال تجربة».</li>
+        </ol>
+        الرمز بيوصل إلى: <b class="smtp-to" dir="ltr"></b>
+      </div>
+      <form class="form small" autocomplete="off" style="margin-top:10px">
+        <label>مزوّد البريد</label>
+        <select name="preset">
+          <option value="gmail">Gmail</option>
+          <option value="custom">آخر (إعداد يدوي)</option>
+        </select>
+        <label>إيميل الإرسال (Gmail)</label><input name="user" type="email" dir="ltr" placeholder="name@gmail.com">
+        <label>كلمة مرور التطبيق</label><input name="pass" type="password" dir="ltr">
+        <label class="smtp-adv">خادم البريد (SMTP)</label><input class="smtp-adv" name="host" dir="ltr">
+        <label class="smtp-adv">المنفذ</label><input class="smtp-adv" name="port" type="number" dir="ltr">
+        <div class="error" hidden></div>
+        <div class="ok-msg" hidden></div>
+        <div class="buttons">
+          <button type="submit" class="btn default" data-test="1">حفظ وإرسال تجربة</button>
+          <button type="button" class="btn" data-save-only>حفظ فقط</button>
+          <button type="button" class="btn" data-close>إغلاق</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<template id="tplRecovery">
+  <div class="window dlg-recovery">
+    <div class="title-bar">
+      <span class="title-bar-text">🔑 رمز استرداد جديد</span>
+      <button class="tb-close" data-close aria-label="إغلاق">✕</button>
+    </div>
+    <div class="window-body">
+      <form class="form" autocomplete="off">
+        <div class="span muted">رمز الاسترداد يخليك تغيّر كلمة المرور بدون إنترنت إذا نسيتها. لما تسوي رمز جديد، الرمز القديم يوقف.</div>
+        <label>كلمة المرور الحالية <b class="req">*</b></label><input name="currentPassword" type="password" required>
+        <div class="error" hidden></div>
+        <div class="buttons">
+          <button type="submit" class="btn default">إنشاء الرمز</button>
+          <button type="button" class="btn" data-close>إلغاء</button>
+        </div>
+      </form>
     </div>
   </div>
 </template>

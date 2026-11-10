@@ -242,3 +242,36 @@ tr.sel .days { color: #fff; }
 .dlg-alerts .grid tbody tr { cursor: default; }
 
 @media (max-width: 1180px) { .details-group { width: 280px; } }
+
+/* شاشة تسجيل الدخول */
+.auth { position: fixed; inset: 0; z-index: 90; display: flex; align-items: center; justify-content: center;
+  background: #008080; overflow: auto; padding: 20px; }
+.auth[hidden] { display: none; }
+.auth-win { width: 460px; max-height: none; }
+.auth-head { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.auth-head img { width: 48px; height: 48px; }
+.auth-title { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
+.auth-form { display: flex; flex-direction: column; gap: 4px; }
+.auth-form label { margin-top: 6px; }
+.auth-form input { width: 100%; }
+.auth-form .buttons { margin-top: 12px; }
+.auth-form .btn.default { min-width: 120px; }
+.auth-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 8px;
+  border-top: 1px solid var(--shadow); box-shadow: 0 1px 0 var(--light) inset; font-size: 12px; }
+.muted { color: #444; line-height: 1.6; }
+.ok-msg { color: #006400; background: #efffef; border: 1px solid #8c8; padding: 6px 8px; margin: 6px 0; line-height: 1.6; }
+.code-box { font-family: Consolas, "Courier New", monospace; font-size: 24px; font-weight: bold; letter-spacing: 3px;
+  text-align: center; padding: 14px; margin: 10px 0 4px; background: #fff; user-select: all;
+  box-shadow: inset -1px -1px var(--light), inset 1px 1px var(--shadow), inset -2px -2px var(--hilite), inset 2px 2px var(--dark); }
+.code-input { font-family: Consolas, monospace; font-size: 16px; letter-spacing: 2px; text-align: center; }
+.choice { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.choice-card { padding: 10px; background: #fff; line-height: 1.6;
+  box-shadow: inset -1px -1px var(--light), inset 1px 1px var(--shadow); }
+.choice-card .buttons { margin-top: 6px; }
+.form .span { grid-column: 1 / -1; }
+.dlg-account { width: 480px; }
+.dlg-smtp { width: 560px; }
+.dlg-smtp ol { margin: 4px 0; padding-right: 20px; }
+.dlg-smtp a { color: #00c; }
+.dlg-recovery { width: 440px; }
+.copied { margin-right: 8px; }

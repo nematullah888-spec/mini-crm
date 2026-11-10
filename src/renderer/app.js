@@ -13,6 +13,9 @@ let lastError = '';
 let sort = { key: 'no', dir: -1 };
 let settings = { products: ['مانجر', 'أورنيوم'], alertDays: 10 };
 let alertsShown = false;
+let token = null;          // جلسة الدخول (في الذاكرة فقط)
+let username = '';
+let authStatus = null;
 const today = () => Subs.todayStr();
 const statusOf = c => Subs.customerStatus(c, today(), settings.alertDays);
 const money = v => (v === '' || v == null) ? '' : Number(v).toLocaleString('en-US') + ' ريال';
@@ -41,6 +44,7 @@ async function api(method, path, body) {
   if (!S.apiBase) throw new Error('لم يتم تحديد جهاز الخادم. افتح الإعدادات.');
   const headers = { 'Content-Type': 'application/json' };
   if (S.sendKey) headers['X-CRM-Key'] = encodeURIComponent(S.sendKey);
+  if (token) headers.Authorization = 'Bearer ' + token;
   let res;
   try {
     res = await fetch(S.apiBase + path, {
@@ -52,11 +56,23 @@ async function api(method, path, body) {
     throw new Error('تعذر الاتصال بالخادم. تأكد أن جهاز الخادم شغال وأن البرنامج مفتوح عليه.');
   }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || ('خطأ ' + res.status));
+  if (!res.ok) {
+    const err = new Error(data.error || ('خطأ ' + res.status));
+    err.status = res.status;
+    err.code = data.code;
+    // انتهت الجلسة: نرجع لشاشة الدخول
+    if (res.status === 401 && data.code === 'login' && token) {
+      token = null;
+      lockApp();
+      startAuth();
+    }
+    throw err;
+  }
   return data;
 }
 
 async function reload() {
+  if (!token) return;
   try {
     const data = await api('GET', '/api/customers');
     customers = data.customers;
@@ -70,7 +86,7 @@ async function reload() {
 }
 
 async function poll() {
-  if (!S || !S.apiBase) return;
+  if (!S || !S.apiBase || !token) return;
   try {
     const { revision: r } = await api('GET', '/api/revision');
     setOnline(true);
@@ -385,6 +401,7 @@ async function deleteSub(c, sub) {
 }
 
 function updateStatus() {
+  $('#stUser').textContent = token ? '👤 ' + username : '🔒 غير مسجل';
   $('#stMode').textContent = 'الوضع: ' + MODE_NAMES[S.config.mode];
   const conn = $('#stConn');
   if (S.serverError) {
@@ -508,6 +525,7 @@ async function openSettings() {
   n.querySelector('[name=port]').value = cfg.port;
   n.querySelector('[name=accessKey]').value = cfg.accessKey;
   n.querySelector('[name=products]').value = settings.products.join('\n');
+  if (!token) n.querySelector('[name=products]').closest('fieldset').hidden = true;
   n.querySelector('[name=alertDays]').value = settings.alertDays;
   n.querySelector('#ipHint').innerHTML =
     'في الأجهزة الثانية اختر «عميل» واكتب عنوان هذا الجهاز:<br>' +
@@ -532,7 +550,7 @@ async function openSettings() {
       if (ping.app !== 'MiniCRM') throw new Error();
       if (ping.needsKey) {
         const r = await fetch(base + '/api/revision', { headers: { 'X-CRM-Key': encodeURIComponent(v.accessKey) }, signal: AbortSignal.timeout(5000) });
-        if (r.status === 401) { out.innerHTML = '<span class="bad">✕ الخادم موجود لكن رمز الشبكة غير صحيح</span>'; return; }
+        if (r.status === 403) { out.innerHTML = '<span class="bad">✕ الخادم موجود لكن رمز الشبكة غير صحيح</span>'; return; }
       }
       out.innerHTML = '<span class="ok">✓ تم الاتصال بالخادم بنجاح</span>';
     } catch (_) {
@@ -549,7 +567,7 @@ async function openSettings() {
     // الخدمات وأيام التنبيه محفوظة في الخادم ومشتركة بين الأجهزة
     const products = n.querySelector('[name=products]').value.split('\n').map(x => x.trim()).filter(Boolean);
     const alertDays = Number(n.querySelector('[name=alertDays]').value);
-    if (products.join('\n') !== settings.products.join('\n') || alertDays !== settings.alertDays) {
+    if (token && (products.join('\n') !== settings.products.join('\n') || alertDays !== settings.alertDays)) {
       try {
         settings = await api('PUT', '/api/settings', { products, alertDays });
       } catch (e) {
@@ -559,12 +577,19 @@ async function openSettings() {
         return;
       }
     }
+    const old = S.config;
     S = await window.crm.saveConfig(v);
     themeSaved = true;
     d.close(true);
-    revision = -1;
-    customers = [];
-    selectedId = null;
+    const connChanged = old.mode !== S.config.mode || old.serverHost !== S.config.serverHost ||
+      String(old.port) !== String(S.config.port) || old.accessKey !== S.config.accessKey;
+    if (connChanged || !token) {
+      // تغيّر الاتصال: نسجل دخول من جديد على الخادم الجديد
+      token = null;
+      lockApp();
+      updateStatus();
+      return startAuth();
+    }
     updateStatus();
     await reload();
     if (S.serverError) msgbox(S.serverError, { icon: '⚠️', title: 'تنبيه' });
@@ -633,6 +658,10 @@ const commands = {
     return c ? editSub(c, null, 'new') : msgbox('اختر عميلاً من القائمة أولاً.');
   },
   alerts: showAlerts,
+  account: openAccount,
+  smtp: openSmtp,
+  recovery: openRecovery,
+  logout: logout,
   themeClassic: () => setTheme('classic'),
   themeModern: () => setTheme('modern'),
   refresh: reload,
@@ -711,6 +740,7 @@ document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeCurrent(null);
     return;
   }
+  if (!$('#auth').hidden) return;
   const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
   if (e.ctrlKey && e.key.toLowerCase() === 'n') { e.preventDefault(); run('new'); }
   else if (e.ctrlKey && e.key.toLowerCase() === 'f') { e.preventDefault(); run('find'); }
@@ -745,17 +775,351 @@ function startupAlert() {
   showAlerts();
 }
 
+// ---------- تسجيل الدخول ----------
+const authBox = () => $('#authBody');
+
+function lockApp() {
+  if (closeCurrent) closeCurrent(null);
+  customers = [];
+  selectedId = null;
+  revision = 0;
+  render();
+  $('#auth').hidden = false;
+}
+
+async function afterLogin(res) {
+  token = res.token;
+  username = res.username;
+  $('#auth').hidden = true;
+  authBox().innerHTML = '';
+  alertsShown = false;
+  updateStatus();
+  await reload();
+  if (S.serverError) msgbox(S.serverError, { icon: '⚠️', title: 'تنبيه' });
+  else startupAlert();
+}
+
+function authFooter() {
+  const where = S.config.mode === 'client'
+    ? `متصل بالخادم: <span dir="ltr">${esc(S.config.serverHost || '—')}</span>`
+    : (S.config.mode === 'server' ? 'هذا الجهاز: خادم' : 'جهاز واحد');
+  return `<div class="auth-foot"><span class="muted">${where}</span>
+    <button type="button" class="linkbtn" data-cmd="settings">⚙️ الإعدادات والشبكة</button></div>`;
+}
+
+function authHead(title, sub) {
+  return `<div class="auth-head"><img src="icon.png" alt="">
+    <div><div class="auth-title">${title}</div><div class="muted">${sub}</div></div></div>`;
+}
+
+function field(label, name, type = 'text', extra = '') {
+  return `<label>${label}</label><input name="${name}" type="${type}" ${extra}>`;
+}
+
+// يربط نموذج بدالة إرسال ويعرض الأخطاء
+function bindForm(form, handler) {
+  form.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const err = form.querySelector('.error');
+    const btn = form.querySelector('button[type=submit]');
+    err.hidden = true;
+    btn.disabled = true;
+    try {
+      await handler(Object.fromEntries(new FormData(form).entries()));
+    } catch (e) {
+      err.textContent = e.message;
+      err.hidden = false;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+  setTimeout(() => { const f = form.querySelector('input'); if (f) f.focus(); }, 0);
+}
+
+function checkNewPassword(p, c) {
+  if (!p || p.length < 6) throw new Error('كلمة المرور لازم تكون 6 خانات على الأقل');
+  if (p !== c) throw new Error('كلمتين المرور غير متطابقتين');
+}
+
+async function startAuth() {
+  $('#auth').hidden = false;
+  const box = authBox();
+  if (S.serverError) return authMessage('⚠️', S.serverError);
+  if (!S.apiBase) {
+    return authMessage('🖧', 'هذا الجهاز «عميل» ولم يتم تحديد جهاز الخادم بعد. افتح الإعدادات واكتب عنوان جهاز الخادم.');
+  }
+  box.innerHTML = '<div class="muted" style="padding:20px;text-align:center">جاري الاتصال…</div>';
+  try {
+    authStatus = await api('GET', '/api/auth/status');
+  } catch (e) {
+    if (e.status === 404) return authMessage('⚠️', 'جهاز الخادم عليه نسخة قديمة من البرنامج. حدّث البرنامج على جهاز الخادم أولاً.');
+    return authMessage('⚠️', e.message);
+  }
+  authStatus.hasAccount ? showLogin() : showSetup();
+}
+
+function authMessage(icon, text) {
+  $('#authTitle').textContent = '🔒 برنامج العملاء';
+  authBox().innerHTML = `
+    ${authHead('برنامج العملاء', 'تعذر المتابعة')}
+    <div class="msg"><span class="msg-ico">${icon}</span><div class="msg-text">${esc(text)}</div></div>
+    <div class="buttons"><button class="btn default" data-auth-retry>🔄 إعادة المحاولة</button></div>
+    ${authFooter()}`;
+  authBox().querySelector('[data-auth-retry]').addEventListener('click', async () => {
+    S = await window.crm.state();
+    startAuth();
+  });
+}
+
+function showLogin(note) {
+  $('#authTitle').textContent = '🔒 تسجيل الدخول';
+  authBox().innerHTML = `
+    ${authHead('برنامج العملاء', 'سجّل دخولك للمتابعة')}
+    ${note ? `<div class="ok-msg">${esc(note)}</div>` : ''}
+    <form class="auth-form" autocomplete="off">
+      ${field('اسم المستخدم', 'username', 'text', 'autocomplete="username"')}
+      ${field('كلمة المرور', 'password', 'password', 'autocomplete="current-password"')}
+      <div class="error" hidden></div>
+      <div class="buttons"><button type="submit" class="btn default">دخول</button></div>
+      <div><button type="button" class="linkbtn" data-forgot>نسيت كلمة المرور؟</button></div>
+    </form>
+    ${authFooter()}`;
+  const f = authBox().querySelector('form');
+  f.querySelector('[data-forgot]').addEventListener('click', showForgot);
+  bindForm(f, async v => afterLogin(await api('POST', '/api/auth/login', v)));
+}
+
+function showSetup() {
+  $('#authTitle').textContent = '🔒 إنشاء حساب';
+  authBox().innerHTML = `
+    ${authHead('أهلاً بك 👋', 'أول مرة: سوّ اسم مستخدم وكلمة مرور عشان ما أحد يستخدم البرنامج غيرك.')}
+    <form class="auth-form" autocomplete="off">
+      ${field('اسم المستخدم', 'username', 'text', 'maxlength="40"')}
+      ${field('كلمة المرور (6 خانات على الأقل)', 'password', 'password')}
+      ${field('تأكيد كلمة المرور', 'confirm', 'password')}
+      ${field('الإيميل (لاستعادة كلمة المرور إذا نسيتها)', 'email', 'email', 'dir="ltr"')}
+      <div class="error" hidden></div>
+      <div class="buttons"><button type="submit" class="btn default">إنشاء الحساب</button></div>
+    </form>
+    ${authFooter()}`;
+  bindForm(authBox().querySelector('form'), async v => {
+    checkNewPassword(v.password, v.confirm);
+    const res = await api('POST', '/api/auth/setup', v);
+    showRecoveryCode(res.recoveryCode, () => afterLogin(res));
+  });
+}
+
+// عرض رمز الاسترداد مرة وحدة
+function recoveryCodeHtml(code) {
+  return `
+    <div class="hint">🔑 هذا <b>رمز الاسترداد</b>. احفظه في مكان آمن (اكتبه في ورقة أو صوّره).
+      إذا نسيت كلمة المرور وما عندك إنترنت، تقدر تغيّرها بهذا الرمز.
+      <b>ما راح يظهر لك مرة ثانية.</b></div>
+    <div class="code-box" dir="ltr">${esc(code)}</div>
+    <div class="buttons" style="margin-top:6px"><button type="button" class="btn" data-copy>📋 نسخ الرمز</button>
+      <span class="copied muted" hidden>✓ تم النسخ</span></div>`;
+}
+
+function wireCopy(root, code) {
+  root.querySelector('[data-copy]').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(code); }
+    catch (_) {
+      const r = document.createRange();
+      r.selectNodeContents(root.querySelector('.code-box'));
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      document.execCommand('copy');
+    }
+    root.querySelector('.copied').hidden = false;
+  });
+}
+
+function showRecoveryCode(code, next) {
+  $('#authTitle').textContent = '🔑 رمز الاسترداد';
+  authBox().innerHTML = `
+    ${recoveryCodeHtml(code)}
+    <label class="radio"><input type="checkbox" data-ack> <span>حفظت الرمز في مكان آمن</span></label>
+    <div class="buttons"><button type="button" class="btn default" data-next disabled>متابعة ←</button></div>`;
+  const box = authBox();
+  wireCopy(box, code);
+  const ack = box.querySelector('[data-ack]');
+  const nx = box.querySelector('[data-next]');
+  ack.addEventListener('change', () => { nx.disabled = !ack.checked; });
+  nx.addEventListener('click', next);
+}
+
+async function showForgot() {
+  $('#authTitle').textContent = '🔒 استعادة كلمة المرور';
+  try { authStatus = await api('GET', '/api/auth/status'); } catch (_) { /* نستخدم آخر حالة معروفة */ }
+  const st = authStatus || {};
+  const serverNote = S.config.mode === 'client' ? ' (جهاز الخادم لازم يكون متصل بالإنترنت)' : '';
+  authBox().innerHTML = `
+    ${authHead('نسيت كلمة المرور؟', 'اختر طريقة الاستعادة')}
+    <div class="choice">
+      <div class="choice-card">
+        <b>✉️ عن طريق الإيميل</b>
+        ${st.smtpReady
+          ? `<div class="muted">نرسل رمز من 6 أرقام إلى <span dir="ltr">${esc(st.emailHint)}</span>${serverNote}.</div>
+             <form class="auth-form" data-send><div class="error" hidden></div>
+             <div class="buttons"><button type="submit" class="btn default">إرسال الرمز</button></div></form>`
+          : `<div class="muted">إرسال الإيميل غير مُعدّ في البرنامج بعد (يتم إعداده من قائمة «الحساب» بعد الدخول). استخدم رمز الاسترداد.</div>`}
+      </div>
+      <div class="choice-card">
+        <b>🔑 عن طريق رمز الاسترداد</b>
+        <div class="muted">الرمز اللي ظهر لك وقت إنشاء الحساب. يشتغل بدون إنترنت.</div>
+        <div class="buttons"><button type="button" class="btn" data-recover>عندي رمز الاسترداد</button></div>
+      </div>
+    </div>
+    <div><button type="button" class="linkbtn" data-back>→ رجوع لتسجيل الدخول</button></div>`;
+  const box = authBox();
+  box.querySelector('[data-back]').addEventListener('click', () => showLogin());
+  box.querySelector('[data-recover]').addEventListener('click', showRecover);
+  const sendForm = box.querySelector('[data-send]');
+  if (sendForm) bindForm(sendForm, async () => {
+    const r = await api('POST', '/api/auth/forgot');
+    showResetCode(r.emailHint);
+  });
+}
+
+function showResetCode(hint) {
+  $('#authTitle').textContent = '🔒 استعادة كلمة المرور';
+  authBox().innerHTML = `
+    ${authHead('تفقد إيميلك 📬', `أرسلنا رمز من 6 أرقام إلى ${esc(hint)} — صالح 15 دقيقة. (تفقد البريد المزعج Spam إذا ما لقيته)`)}
+    <form class="auth-form" autocomplete="off">
+      ${field('الرمز', 'code', 'text', 'dir="ltr" inputmode="numeric" maxlength="6" class="code-input"')}
+      ${field('كلمة المرور الجديدة', 'newPassword', 'password')}
+      ${field('تأكيد كلمة المرور', 'confirm', 'password')}
+      <div class="error" hidden></div>
+      <div class="buttons"><button type="submit" class="btn default">تغيير كلمة المرور</button></div>
+      <div><button type="button" class="linkbtn" data-back>→ رجوع</button></div>
+    </form>`;
+  const f = authBox().querySelector('form');
+  f.querySelector('[data-back]').addEventListener('click', showForgot);
+  bindForm(f, async v => {
+    checkNewPassword(v.newPassword, v.confirm);
+    const res = await api('POST', '/api/auth/reset', { code: v.code, newPassword: v.newPassword });
+    await afterLogin(res);
+    msgbox('تم تغيير كلمة المرور بنجاح ✓', { title: 'تم' });
+  });
+}
+
+function showRecover() {
+  $('#authTitle').textContent = '🔑 رمز الاسترداد';
+  authBox().innerHTML = `
+    ${authHead('رمز الاسترداد', 'اكتب الرمز اللي حفظته وقت إنشاء الحساب، واختر كلمة مرور جديدة.')}
+    <form class="auth-form" autocomplete="off">
+      ${field('رمز الاسترداد', 'recoveryCode', 'text', 'dir="ltr" placeholder="XXXX-XXXX-XXXX" class="code-input"')}
+      ${field('كلمة المرور الجديدة', 'newPassword', 'password')}
+      ${field('تأكيد كلمة المرور', 'confirm', 'password')}
+      <div class="error" hidden></div>
+      <div class="buttons"><button type="submit" class="btn default">تغيير كلمة المرور</button></div>
+      <div><button type="button" class="linkbtn" data-back>→ رجوع</button></div>
+    </form>`;
+  const f = authBox().querySelector('form');
+  f.querySelector('[data-back]').addEventListener('click', showForgot);
+  bindForm(f, async v => {
+    checkNewPassword(v.newPassword, v.confirm);
+    const res = await api('POST', '/api/auth/recover', { recoveryCode: v.recoveryCode, newPassword: v.newPassword });
+    // الرمز القديم استُخدم، فنعطيه رمز جديد
+    showRecoveryCode(res.recoveryCode, () => afterLogin(res));
+  });
+}
+
+async function logout() {
+  try { await api('POST', '/api/auth/logout'); } catch (_) { /* ignore */ }
+  token = null;
+  username = '';
+  lockApp();
+  updateStatus();
+  showLogin('تم تسجيل الخروج');
+}
+
+// ---------- نوافذ الحساب ----------
+async function openAccount() {
+  let acc;
+  try { acc = await api('GET', '/api/account'); } catch (e) { return msgbox(e.message, { icon: '❌', title: 'خطأ' }); }
+  const d = dialog('tplAccount');
+  const f = d.node.querySelector('form');
+  f.username.value = acc.username;
+  f.email.value = acc.email;
+  bindForm(f, async v => {
+    if (v.newPassword) checkNewPassword(v.newPassword, v.confirm);
+    const r = await api('PUT', '/api/account', { currentPassword: v.currentPassword, username: v.username, email: v.email, newPassword: v.newPassword });
+    username = r.username;
+    updateStatus();
+    d.close(true);
+    msgbox('تم حفظ بيانات الحساب ✓', { title: 'تم' });
+  });
+  setTimeout(() => f.currentPassword.focus(), 0);
+}
+
+async function openSmtp() {
+  let acc;
+  try { acc = await api('GET', '/api/account'); } catch (e) { return msgbox(e.message, { icon: '❌', title: 'خطأ' }); }
+  const d = dialog('tplSmtp');
+  const n = d.node;
+  const f = n.querySelector('form');
+  n.querySelector('.smtp-to').textContent = acc.email;
+  const sm = acc.smtp;
+  f.user.value = sm.user || '';
+  f.host.value = sm.host || 'smtp.gmail.com';
+  f.port.value = sm.port || 465;
+  f.pass.placeholder = sm.hasPass ? 'محفوظة ✓ — اكتب جديدة لتغييرها' : 'xxxx xxxx xxxx xxxx';
+  const isGmail = (sm.host || 'smtp.gmail.com') === 'smtp.gmail.com' && Number(sm.port || 465) === 465;
+  f.preset.value = isGmail ? 'gmail' : 'custom';
+  const applyPreset = () => {
+    const custom = f.preset.value === 'custom';
+    n.querySelectorAll('.smtp-adv').forEach(el => { el.hidden = !custom; });
+    if (!custom) { f.host.value = 'smtp.gmail.com'; f.port.value = 465; }
+  };
+  f.preset.addEventListener('change', applyPreset);
+  applyPreset();
+  const ok = n.querySelector('.ok-msg');
+  const save = () => api('PUT', '/api/account/smtp', { host: f.host.value, port: f.port.value, user: f.user.value, pass: f.pass.value });
+  n.querySelector('[data-save-only]').addEventListener('click', async () => {
+    const err = n.querySelector('.error');
+    err.hidden = true; ok.hidden = true;
+    try { await save(); ok.textContent = '✓ تم الحفظ'; ok.hidden = false; f.pass.value = ''; f.pass.placeholder = 'محفوظة ✓ — اكتب جديدة لتغييرها'; }
+    catch (e) { err.textContent = e.message; err.hidden = false; }
+  });
+  bindForm(f, async () => {
+    ok.hidden = true;
+    await save();
+    f.pass.value = '';
+    f.pass.placeholder = 'محفوظة ✓ — اكتب جديدة لتغييرها';
+    ok.textContent = 'جاري الإرسال…';
+    ok.hidden = false;
+    try {
+      const r = await api('POST', '/api/account/smtp-test');
+      ok.textContent = `✓ تم إرسال رسالة تجربة إلى ${r.emailHint}. إذا وصلتك، الإعداد صحيح.`;
+    } catch (e) {
+      ok.hidden = true;
+      throw new Error('تم الحفظ، لكن فشل إرسال التجربة: ' + e.message);
+    }
+  });
+}
+
+function openRecovery() {
+  const d = dialog('tplRecovery');
+  const f = d.node.querySelector('form');
+  bindForm(f, async v => {
+    const r = await api('POST', '/api/account/recovery', { currentPassword: v.currentPassword });
+    const body = d.node.querySelector('.window-body');
+    body.innerHTML = recoveryCodeHtml(r.recoveryCode) +
+      '<div class="buttons"><button type="button" class="btn default" data-done>تم</button></div>';
+    wireCopy(body, r.recoveryCode);
+    body.querySelector('[data-done]').addEventListener('click', () => d.close(true));
+  });
+}
+
 // ---------- التشغيل ----------
 (async function init() {
   CATEGORIES.forEach(c => $('#filterCat').add(new Option(c, c)));
   markTheme();
   S = await window.crm.state();
   updateStatus();
-  await reload();
-  if (S.config.mode === 'client' && !S.config.serverHost) openSettings();
-  if (S.serverError) msgbox(S.serverError, { icon: '⚠️', title: 'تنبيه' });
-  else startupAlert();
+  render();
   setInterval(poll, 3000);
+  await startAuth();
   // تحديث الحالة كل ساعة (لو البرنامج مفتوح عدة أيام)
   setInterval(render, 60 * 60 * 1000);
 })();

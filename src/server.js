@@ -6,6 +6,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createAuth } = require('./auth');
 
 const CATEGORIES = ['عميل', 'عميل محتمل', 'عميل مميز', 'متوقف'];
 const FIELDS = {
@@ -107,6 +108,8 @@ function createStore(dataDir) {
     file,
     get revision() { return db.revision; },
     list() { return db.customers; },
+    getAuth() { return db.auth || null; },
+    setAuth(a) { db.auth = a; save(); },
     settings() { return db.settings; },
     setSettings(input) {
       const products = [...new Set((Array.isArray(input.products) ? input.products : [])
@@ -210,13 +213,14 @@ function safeEqual(a, b) {
  */
 function createServer(options) {
   const store = createStore(options.dataDir);
+  const auth = createAuth(store, { send: options.send, tlsOptions: options.tlsOptions });
   const accessKey = options.accessKey || '';
   const version = options.version || '1.0.0';
 
   const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CRM-Key');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CRM-Key, Authorization');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
     const send = (status, obj) => {
@@ -234,7 +238,42 @@ function createServer(options) {
       }
 
       if (accessKey && !safeEqual(decodeKey(req.headers['x-crm-key']), accessKey)) {
-        throw httpError(401, 'رمز الشبكة غير صحيح');
+        const e = httpError(403, 'رمز الشبكة غير صحيح');
+        e.code = 'network_key';
+        throw e;
+      }
+
+      const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+
+      // تسجيل الدخول والاستعادة (بدون جلسة)
+      if (parts[1] === 'auth') {
+        const action = parts[2];
+        if (action === 'status' && req.method === 'GET') return send(200, auth.status());
+        if (req.method === 'POST') {
+          const body = action === 'logout' ? {} : await readBody(req);
+          if (action === 'setup') return send(201, auth.setup(body));
+          if (action === 'login') return send(200, auth.login(body));
+          if (action === 'logout') { auth.logout(token); return send(200, { ok: true }); }
+          if (action === 'forgot') return send(200, await auth.forgot());
+          if (action === 'reset') return send(200, auth.resetWithEmailCode(body));
+          if (action === 'recover') return send(200, auth.resetWithRecoveryCode(body));
+        }
+        throw httpError(404, 'غير موجود');
+      }
+
+      // كل شيء بعد هذا يحتاج تسجيل دخول
+      if (!auth.checkSession(token)) {
+        const e = httpError(401, auth.hasAccount() ? 'سجّل دخولك أولاً' : 'أنشئ حساب أولاً');
+        e.code = 'login';
+        throw e;
+      }
+
+      if (parts[1] === 'account') {
+        if (!parts[2] && req.method === 'GET') return send(200, auth.account());
+        if (!parts[2] && req.method === 'PUT') return send(200, auth.updateAccount(token, await readBody(req)));
+        if (parts[2] === 'recovery' && req.method === 'POST') return send(200, auth.newRecovery(await readBody(req)));
+        if (parts[2] === 'smtp' && req.method === 'PUT') return send(200, auth.updateSmtp(await readBody(req)));
+        if (parts[2] === 'smtp-test' && req.method === 'POST') return send(200, await auth.testSmtp());
       }
 
       if (parts[1] === 'revision' && req.method === 'GET') {
@@ -271,7 +310,9 @@ function createServer(options) {
       }
       throw httpError(404, 'غير موجود');
     } catch (e) {
-      send(e.status || 500, { error: e.message || 'خطأ غير متوقع' });
+      const out = { error: e.message || 'خطأ غير متوقع' };
+      if (typeof e.code === 'string' && !e.code.startsWith('E')) out.code = e.code;
+      send(e.status || 500, out);
     }
   });
 
